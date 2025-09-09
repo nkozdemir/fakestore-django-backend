@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.core.cache import cache
 
 class Product(models.Model):
     title = models.CharField(max_length=255)
@@ -13,6 +14,27 @@ class Product(models.Model):
     
     def __str__(self):
         return self.title
+        
+    def save(self, *args, **kwargs):
+        """Invalidate cache when a product is saved or updated"""
+        # Invalidate product list cache
+        cache.delete('product_list')
+        
+        # Invalidate specific product cache if it exists
+        if self.fakestore_id:
+            cache.delete(f'product_{self.fakestore_id}')
+            
+        super().save(*args, **kwargs)
+        
+    def delete(self, *args, **kwargs):
+        """Invalidate cache when a product is deleted"""
+        # Invalidate product list cache
+        cache.delete('product_list')
+        
+        # Invalidate specific product cache
+        cache.delete(f'product_{self.fakestore_id}')
+        
+        super().delete(*args, **kwargs)
 
 class UserAddress(models.Model):
     geolocation_lat = models.CharField(max_length=50, null=True, blank=True)

@@ -3,6 +3,9 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.db.models import Prefetch
+from django.conf import settings
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
 import json
 
 from .models import Product, User, UserAddress, Cart, CartItem
@@ -10,21 +13,30 @@ from .models import Product, User, UserAddress, Cart, CartItem
 @method_decorator(csrf_exempt, name='dispatch')
 class DBProductListView(View):
     def get(self, request):
-        """Get all products from the database"""
-        products = list(Product.objects.all().values(
-            'fakestore_id', 'title', 'price', 'description', 'category', 'image', 'rating_rate', 'rating_count'
-        ))
+        """Get all products from the database with Redis caching"""
+        # Try to get products from cache
+        products = cache.get('product_list')
         
-        # Format response to match FakeStore API structure
-        for product in products:
-            product['id'] = product.pop('fakestore_id')
-            product['price'] = float(product['price'])
-            product['rating'] = {
-                'rate': float(product['rating_rate']) if product['rating_rate'] else None,
-                'count': product['rating_count']
-            }
-            del product['rating_rate']
-            del product['rating_count']
+        if not products:
+            # If not in cache, fetch from database
+            self.request = request
+            products = list(Product.objects.all().values(
+                'fakestore_id', 'title', 'price', 'description', 'category', 'image', 'rating_rate', 'rating_count'
+            ))
+            
+            # Format response to match FakeStore API structure
+            for product in products:
+                product['id'] = product.pop('fakestore_id')
+                product['price'] = float(product['price'])
+                product['rating'] = {
+                    'rate': float(product['rating_rate']) if product['rating_rate'] else None,
+                    'count': product['rating_count']
+                }
+                del product['rating_rate']
+                del product['rating_count']
+            
+            # Store in cache for CACHE_TTL seconds
+            cache.set('product_list', products, settings.CACHE_TTL)
             
         return JsonResponse(products, safe=False)
     
@@ -49,6 +61,8 @@ class DBProductListView(View):
                 rating_count=rating.get('count')
             )
             
+            # Cache invalidation is handled in the model's save method
+            
             # Format response
             response_data = {
                 'id': product.fakestore_id,
@@ -70,27 +84,36 @@ class DBProductListView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class DBProductDetailView(View):
     def get(self, request, pk):
-        """Get a product by ID from the database"""
-        try:
-            product = Product.objects.get(fakestore_id=pk)
-            
-            # Format response
-            response_data = {
-                'id': product.fakestore_id,
-                'title': product.title,
-                'price': float(product.price),
-                'description': product.description,
-                'category': product.category,
-                'image': product.image,
-                'rating': {
-                    'rate': float(product.rating_rate) if product.rating_rate else None,
-                    'count': product.rating_count
+        """Get a product by ID from the database with Redis caching"""
+        # Try to get product from cache
+        cache_key = f'product_{pk}'
+        response_data = cache.get(cache_key)
+        
+        if not response_data:
+            try:
+                product = Product.objects.get(fakestore_id=pk)
+                
+                # Format response
+                response_data = {
+                    'id': product.fakestore_id,
+                    'title': product.title,
+                    'price': float(product.price),
+                    'description': product.description,
+                    'category': product.category,
+                    'image': product.image,
+                    'rating': {
+                        'rate': float(product.rating_rate) if product.rating_rate else None,
+                        'count': product.rating_count
+                    }
                 }
-            }
-            
-            return JsonResponse(response_data)
-        except Product.DoesNotExist:
-            raise Http404('Product not found')
+                
+                # Store in cache
+                cache.set(cache_key, response_data, settings.CACHE_TTL)
+                
+            except Product.DoesNotExist:
+                raise Http404('Product not found')
+                
+        return JsonResponse(response_data)
     
     def put(self, request, pk):
         """Update a product completely"""

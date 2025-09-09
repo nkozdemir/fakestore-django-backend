@@ -6,6 +6,7 @@ This project is a Django backend that mirrors the [FakeStore API](https://fakest
 - Local PostgreSQL database storage for all data
 - Complete API for products, carts, users, and authentication
 - PostgreSQL database via Docker Compose
+- Redis caching for improved performance
 - Django 5.x, Python 3.13
 
 ## Setup
@@ -34,18 +35,20 @@ pip install -r requirements.txt
 
 ### 5. Set up the database (migrations, import data, create users)
 ```
-python manage.py setup_db
+# Start Docker services (PostgreSQL and Redis) and set up the database
+python manage.py setup_db --with-docker
 ```
 
 Or if you want to reset the database first:
 ```
-python manage.py setup_db --force
+python manage.py setup_db --force --with-docker
 ```
 
 This command will:
-1. Apply all migrations
-2. Import all data from FakeStore API
-3. Create Django users for all FakeStore users
+1. Start Docker services (PostgreSQL and Redis)
+2. Apply all migrations
+3. Import all data from FakeStore API
+4. Create Django users for all FakeStore users
 
 ### 6. Run the development server
 ```
