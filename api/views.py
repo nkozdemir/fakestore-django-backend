@@ -2,14 +2,25 @@
 import requests
 from django.http import JsonResponse, Http404
 from django.views import View
+from django.core.serializers import serialize
+import json
+
+from .models import Product
 
 FAKESTORE_API_BASE = 'https://fakestoreapi.com'
 
 
 class ProductListView(View):
 	def get(self, request):
-		resp = requests.get(f'{FAKESTORE_API_BASE}/products')
-		return JsonResponse(resp.json(), safe=False)
+		# Try to get products from database first
+		products = list(Product.objects.all().values())
+		
+		# If no products in database, fetch from API
+		if not products:
+			resp = requests.get(f'{FAKESTORE_API_BASE}/products')
+			return JsonResponse(resp.json(), safe=False)
+			
+		return JsonResponse(products, safe=False)
 	def post(self, request):
 		resp = requests.post(f'{FAKESTORE_API_BASE}/products', json=request.POST.dict())
 		return JsonResponse(resp.json(), status=resp.status_code, safe=False)
@@ -17,10 +28,27 @@ class ProductListView(View):
 
 class ProductDetailView(View):
 	def get(self, request, pk):
-		resp = requests.get(f'{FAKESTORE_API_BASE}/products/{pk}')
-		if resp.status_code == 404:
-			raise Http404('Product not found')
-		return JsonResponse(resp.json(), safe=False)
+		# Try to get product from database first
+		try:
+			product = Product.objects.get(fakestore_id=pk)
+			return JsonResponse({
+				'id': product.fakestore_id,
+				'title': product.title,
+				'price': float(product.price),
+				'description': product.description,
+				'category': product.category,
+				'image': product.image,
+				'rating': {
+					'rate': float(product.rating_rate) if product.rating_rate else None,
+					'count': product.rating_count
+				}
+			})
+		except Product.DoesNotExist:
+			# If not in database, fetch from API
+			resp = requests.get(f'{FAKESTORE_API_BASE}/products/{pk}')
+			if resp.status_code == 404:
+				raise Http404('Product not found')
+			return JsonResponse(resp.json(), safe=False)
 	def put(self, request, pk):
 		resp = requests.put(f'{FAKESTORE_API_BASE}/products/{pk}', json=request.POST.dict())
 		return JsonResponse(resp.json(), status=resp.status_code, safe=False)
