@@ -32,17 +32,22 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 5. Apply migrations
+### 5. Set up the database (migrations, import data, create users)
 ```
-python manage.py migrate
-```
-
-### 6. Import all data from FakeStore API to the database
-```
-python manage.py import_all
+python manage.py setup_db
 ```
 
-### 7. Run the development server
+Or if you want to reset the database first:
+```
+python manage.py setup_db --force
+```
+
+This command will:
+1. Apply all migrations
+2. Import all data from FakeStore API
+3. Create Django users for all FakeStore users
+
+### 6. Run the development server
 ```
 python manage.py runserver
 ```
@@ -73,10 +78,57 @@ python manage.py runserver
 - `GET /api/carts/user/<user_id>/` — Get carts by user ID
 
 ### Authentication
-- `POST /api/auth/login/` — Login with username and password (proxied directly to FakeStore API)
+- `POST /api/auth/register/` — Register a new user (returns JWT tokens)
+- `POST /api/auth/login/` — Login with username and password (returns JWT tokens)
+- `POST /api/auth/refresh/` — Refresh an expired access token
+- `GET /api/auth/me/` — Get information about the current user (requires authentication)
 
 ## Environment Variables
 - Database settings are configured in `fakestore_backend/settings.py` for local Docker PostgreSQL.
+
+## JWT Authentication
+
+This project uses Django REST Framework SimpleJWT for authentication. Here's how to use the JWT authentication endpoints:
+
+### Register a new user
+```bash
+curl -X POST http://localhost:8000/api/auth/register/ \
+  -H "Content-Type: application/json" \
+  -d '{"username": "testuser", "email": "test@example.com", "password": "testpassword123"}'
+```
+
+### Login with username and password
+```bash
+curl -X POST http://localhost:8000/api/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"username": "testuser", "password": "testpassword123"}'
+```
+
+The response will contain both access and refresh tokens:
+```json
+{
+  "refresh": "eyJ0eXAiOiJKV...",
+  "access": "eyJ0eXAiOiJKV...",
+  "user": {
+    "id": 1,
+    "username": "testuser",
+    "email": "test@example.com"
+  }
+}
+```
+
+### Refresh an expired token
+```bash
+curl -X POST http://localhost:8000/api/auth/refresh/ \
+  -H "Content-Type: application/json" \
+  -d '{"refresh": "YOUR_REFRESH_TOKEN"}'
+```
+
+### Access protected endpoints
+```bash
+curl http://localhost:8000/api/auth/me/ \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
 
 ## License
 MIT
