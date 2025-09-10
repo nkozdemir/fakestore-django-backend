@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.core.cache import cache
+from django.contrib.auth.models import AbstractUser
 
 class Product(models.Model):
     title = models.CharField(max_length=255)
@@ -47,16 +48,19 @@ class UserAddress(models.Model):
     def __str__(self):
         return f"{self.street}, {self.city}"
 
-class User(models.Model):
-    fakestore_id = models.IntegerField(unique=True)
-    email = models.EmailField(unique=True)
-    username = models.CharField(max_length=50, unique=True)
-    password = models.CharField(max_length=100)  # Note: In real apps, never store plain passwords
-    name_firstname = models.CharField(max_length=100)
-    name_lastname = models.CharField(max_length=100)
-    address = models.ForeignKey(UserAddress, on_delete=models.CASCADE, related_name='users')
-    phone = models.CharField(max_length=20)
-    
+class User(AbstractUser):
+    """Unified User model combining Django auth user and FakeStore user fields.
+    - Uses Django auth fields: username, email, password (hashed), first_name, last_name
+    - Adds FakeStore fields: fakestore_id, address, phone
+    - Keeps name_firstname/name_lastname for API compatibility
+    """
+    fakestore_id = models.IntegerField(unique=True, null=True, blank=True)
+    address = models.ForeignKey(UserAddress, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
+    phone = models.CharField(max_length=20, blank=True)
+    # Duplicate name fields for legacy API compatibility (optional)
+    name_firstname = models.CharField(max_length=100, blank=True)
+    name_lastname = models.CharField(max_length=100, blank=True)
+
     def __str__(self):
         return self.username
 

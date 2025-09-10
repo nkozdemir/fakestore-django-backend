@@ -148,6 +148,9 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
+# Custom User model
+AUTH_USER_MODEL = 'api.User'
+
 # Redis Cache Configuration
 CACHES = {
     "default": {

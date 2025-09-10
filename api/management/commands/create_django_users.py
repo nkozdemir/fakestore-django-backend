@@ -1,37 +1,23 @@
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
-from api.models import User as FakeStoreUser
+from django.contrib.auth import get_user_model
 
 class Command(BaseCommand):
-    help = 'Creates Django auth users for existing FakeStore users'
+    help = 'Ensure all users have usable Django passwords; set default where missing'
 
     def handle(self, *args, **kwargs):
-        fakestore_users = FakeStoreUser.objects.all()
-        created_count = 0
-        skipped_count = 0
-        
-        self.stdout.write(self.style.SUCCESS(f'Found {fakestore_users.count()} FakeStore users'))
-        
-        for fs_user in fakestore_users:
-            # Check if Django user with same username already exists
-            if User.objects.filter(username=fs_user.username).exists():
-                self.stdout.write(self.style.WARNING(f'User {fs_user.username} already exists, skipping'))
-                skipped_count += 1
-                continue
-                
-            # Create Django user with same username
-            # Note: FakeStore passwords are not secure, using a default password for all users
-            user = User.objects.create_user(
-                username=fs_user.username,
-                email=fs_user.email,
-                # password='Fakestore123!'  # Using a default password
-                password=fs_user.password  # Using a default password
-            )
-            
-            self.stdout.write(self.style.SUCCESS(f'Created Django user for {fs_user.username}'))
-            created_count += 1
-        
-        self.stdout.write(self.style.SUCCESS(f'Created {created_count} Django users, skipped {skipped_count}'))
-        
-        if created_count > 0:
-            self.stdout.write(self.style.SUCCESS('All users have their FakeStore password as default password'))
+        User = get_user_model()
+        updated = 0
+        skipped = 0
+        total = User.objects.count()
+
+        for u in User.objects.all():
+            if not u.has_usable_password():
+                u.set_password('Fakestore123!')
+                u.save(update_fields=['password'])
+                updated += 1
+            else:
+                skipped += 1
+
+        self.stdout.write(self.style.SUCCESS(
+            f'Processed {total} users: set default password for {updated}, skipped {skipped} with usable passwords'
+        ))

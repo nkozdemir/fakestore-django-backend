@@ -18,7 +18,7 @@ class DBUserListView(View):
                 'id': user.fakestore_id,
                 'email': user.email,
                 'username': user.username,
-                'password': user.password,
+                # Do not expose password hashes
                 'name': {
                     'firstname': user.name_firstname,
                     'lastname': user.name_lastname
@@ -63,23 +63,26 @@ class DBUserListView(View):
             
             # Create user
             name = data.get('name', {})
-            user = User.objects.create(
-                fakestore_id=new_id,
-                email=data.get('email', ''),
+            user = User.objects.create_user(
                 username=data.get('username', ''),
+                email=data.get('email', ''),
                 password=data.get('password', ''),
-                name_firstname=name.get('firstname', ''),
-                name_lastname=name.get('lastname', ''),
-                address=address,
-                phone=data.get('phone', '')
+                first_name=name.get('firstname', ''),
+                last_name=name.get('lastname', ''),
             )
+            user.fakestore_id = new_id
+            user.address = address
+            user.phone = data.get('phone', '')
+            user.name_firstname = name.get('firstname', '')
+            user.name_lastname = name.get('lastname', '')
+            user.save()
             
             # Format response
             response_data = {
                 'id': user.fakestore_id,
                 'email': user.email,
                 'username': user.username,
-                'password': user.password,
+                # Do not expose password hashes
                 'name': {
                     'firstname': user.name_firstname,
                     'lastname': user.name_lastname
@@ -145,7 +148,8 @@ class DBUserDetailView(View):
             name = data.get('name', {})
             user.email = data.get('email', user.email)
             user.username = data.get('username', user.username)
-            user.password = data.get('password', user.password)
+            if 'password' in data:
+                user.set_password(data['password'])
             user.name_firstname = name.get('firstname', user.name_firstname)
             user.name_lastname = name.get('lastname', user.name_lastname)
             user.phone = data.get('phone', user.phone)
@@ -169,7 +173,7 @@ class DBUserDetailView(View):
                 'id': user.fakestore_id,
                 'email': user.email,
                 'username': user.username,
-                'password': user.password,
+                # Do not expose password hashes
                 'name': {
                     'firstname': user.name_firstname,
                     'lastname': user.name_lastname

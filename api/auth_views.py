@@ -2,11 +2,10 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
 from .serializers import UserSerializer
-from .models import User as FakeStoreUser
+from .models import User
 
 class RegisterView(APIView):
     def post(self, request):
@@ -22,7 +21,9 @@ class RegisterView(APIView):
             user = User.objects.create_user(
                 username=data['username'],
                 email=data.get('email', ''),
-                password=data['password']
+                password=data['password'],
+                first_name=data.get('first_name', ''),
+                last_name=data.get('last_name', ''),
             )
             
             # Generate tokens

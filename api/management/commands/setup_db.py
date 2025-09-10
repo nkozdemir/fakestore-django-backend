@@ -20,39 +20,24 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        force_reset = options.get('force', False)
-        with_docker = options.get('with_docker', False)
-        
-        # Optionally start Docker services
-        if with_docker:
-            self.stdout.write(self.style.NOTICE('Starting Docker services (PostgreSQL and Redis)...'))
-            self.start_docker_services()
-        
-        # Optionally reset the database
-        if force_reset:
-            self.stdout.write(self.style.WARNING('Force reset requested. Resetting database...'))
-            self.reset_database()
-        
-        # Run migrations
-        self.stdout.write(self.style.NOTICE('Applying migrations...'))
-        call_command('migrate', verbosity=2)
-        
-        # Import all FakeStore data
-        self.stdout.write(self.style.NOTICE('Importing all data from FakeStore API...'))
-        call_command('import_all', verbosity=2)
-        
-        # Clean up any existing Django users (non-superusers)
-        self.stdout.write(self.style.NOTICE('Cleaning up existing Django users...'))
-        call_command('drop_django_users', verbosity=2)
-        
-        # Create Django users from FakeStore users
-        self.stdout.write(self.style.NOTICE('Creating Django users from FakeStore users...'))
-        call_command('create_django_users', verbosity=2)
-        
-        self.stdout.write(self.style.SUCCESS('Database setup completed successfully'))
-        self.stdout.write(self.style.SUCCESS('All FakeStore data has been imported'))
-        self.stdout.write(self.style.SUCCESS('Django users have been created for all FakeStore users'))
-        self.stdout.write(self.style.SUCCESS('You can now run the server with: python manage.py runserver'))
+        # 1) migrations
+        call_command('migrate', interactive=False, verbosity=1)
+
+        # 2) optional clean (drop users first to avoid FK cascades later)
+        self.stdout.write('Cleaning up existing Django users...')
+        call_command('drop_django_users', verbosity=1)
+
+        # 3) import data fresh
+        self.stdout.write('Importing all data from FakeStore API...')
+        call_command('import_products', verbosity=1)
+        call_command('import_users', verbosity=1)
+        call_command('import_carts', verbosity=1)
+
+        # 4) ensure passwords
+        self.stdout.write('Ensuring passwords for users...')
+        call_command('create_django_users', verbosity=1)
+
+        self.stdout.write(self.style.SUCCESS('Database setup completed.'))
 
     def reset_database(self):
         """Reset the database by dropping all tables and recreating them"""
