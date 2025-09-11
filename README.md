@@ -85,6 +85,8 @@ python manage.py runserver
 - `POST /api/auth/login/` — Login with username and password (returns JWT tokens)
 - `POST /api/auth/refresh/` — Refresh an expired access token
 - `GET /api/auth/me/` — Get information about the current user (requires authentication)
+ - `POST /api/auth/logout/` — Logout by blacklisting a single refresh token (body: {"refresh": "<token>"})
+ - `POST /api/auth/logout-all/` — Logout from all sessions (requires authentication)
 
 ## Environment Variables
 - Database settings are configured in `fakestore_backend/settings.py` for local Docker PostgreSQL.

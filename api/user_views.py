@@ -4,7 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import json
 
-from .models import User, UserAddress, Cart, CartItem, Product
+from .models import User, UserAddress 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DBUserListView(View):

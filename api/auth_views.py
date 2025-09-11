@@ -2,6 +2,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
 from .serializers import UserSerializer
@@ -56,7 +57,6 @@ class LoginView(APIView):
                 return Response({
                     'refresh': str(refresh),
                     'access': str(refresh.access_token),
-                    'user': UserSerializer(user).data
                 })
             else:
                 return Response({
@@ -74,5 +74,46 @@ class UserInfoView(APIView):
         try:
             user = request.user
             return Response(UserSerializer(user).data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Logout by blacklisting the provided refresh token"""
+        try:
+            refresh_token = request.data.get('refresh')
+            if not refresh_token:
+                return Response({'error': 'refresh token is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                token = RefreshToken(refresh_token)
+            except TokenError as te:
+                return Response({'error': str(te)}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Ensure the token belongs to the authenticated user
+            if str(request.user.id) != str(token.get('user_id')):
+                return Response({'error': 'token does not belong to the current user'}, status=status.HTTP_403_FORBIDDEN)
+
+            token.blacklist()
+            return Response({'detail': 'Logged out'}, status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class LogoutAllView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Logout from all sessions by blacklisting all refresh tokens for the user"""
+        try:
+            # Issue a new refresh token and blacklist all outstanding tokens for this user
+            # SimpleJWT provides a helper to blacklist via OutstandingToken/BlacklistedToken models
+            from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+
+            tokens = OutstandingToken.objects.filter(user=request.user)
+            for t in tokens:
+                BlacklistedToken.objects.get_or_create(token=t)
+            return Response({'detail': 'Logged out from all sessions'}, status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

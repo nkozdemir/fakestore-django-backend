@@ -25,4 +25,6 @@ urlpatterns = [
     path('auth/login/', auth_views.LoginView.as_view(), name='auth-login'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('auth/me/', auth_views.UserInfoView.as_view(), name='user-info'),
+    path('auth/logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('auth/logout-all/', auth_views.LogoutAllView.as_view(), name='logout_all'),
 ]
