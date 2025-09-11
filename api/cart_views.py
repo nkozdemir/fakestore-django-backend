@@ -171,6 +171,96 @@ class DBCartDetailView(View):
             raise Http404('Cart not found')
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
+    
+    def patch(self, request, pk):
+        """Partially update a cart (add/update/remove products, change user/date)"""
+        try:
+            cart = Cart.objects.get(fakestore_id=pk)
+            data = json.loads(request.body)
+
+            # Change user if provided
+            if 'userId' in data:
+                try:
+                    cart.user = User.objects.get(fakestore_id=data.get('userId'))
+                except User.DoesNotExist:
+                    return JsonResponse({'error': f"User with ID {data.get('userId')} not found"}, status=400)
+
+            # Change date if provided
+            if 'date' in data:
+                cart.date = data.get('date')
+
+            # Operations on products
+            # Expected structure (any subset):
+            # {
+            #   "add": [{"productId": 1, "quantity": 2}, ...],
+            #   "update": [{"productId": 1, "quantity": 5}, ...],
+            #   "remove": [3,4]
+            # }
+            # If a product is added that already exists, quantity is incremented unless also in update.
+
+            # Helper: build lookup of existing items
+            existing_items = {ci.product.fakestore_id: ci for ci in cart.items.select_related('product').all()}
+
+            # Handle add
+            for prod in data.get('add', []) or []:
+                pid = prod.get('productId')
+                qty = prod.get('quantity', 1)
+                if pid is None:
+                    continue
+                try:
+                    product = Product.objects.get(fakestore_id=pid)
+                except Product.DoesNotExist:
+                    return JsonResponse({'error': f"Product with ID {pid} not found"}, status=400)
+                if pid in existing_items:
+                    existing_items[pid].quantity += qty
+                    existing_items[pid].save()
+                else:
+                    CartItem.objects.create(cart=cart, product=product, quantity=qty)
+
+            # Handle update (set quantity)
+            for prod in data.get('update', []) or []:
+                pid = prod.get('productId')
+                if pid is None:
+                    continue
+                qty = prod.get('quantity')
+                if qty is None or qty < 0:
+                    return JsonResponse({'error': f"Invalid quantity for product {pid}"}, status=400)
+                # Create if not exists (upsert semantics)
+                try:
+                    product = Product.objects.get(fakestore_id=pid)
+                except Product.DoesNotExist:
+                    return JsonResponse({'error': f"Product with ID {pid} not found"}, status=400)
+                item = existing_items.get(pid)
+                if item:
+                    item.quantity = qty
+                    item.save()
+                else:
+                    CartItem.objects.create(cart=cart, product=product, quantity=qty)
+
+            # Handle remove
+            for pid in data.get('remove', []) or []:
+                if pid in existing_items:
+                    existing_items[pid].delete()
+
+            cart.save()
+
+            # Response
+            response_data = {
+                'id': cart.fakestore_id,
+                'userId': cart.user.fakestore_id,
+                'date': cart.date.isoformat() if cart.date else None,
+                'products': []
+            }
+            for item in cart.items.select_related('product').all():
+                response_data['products'].append({
+                    'productId': item.product.fakestore_id,
+                    'quantity': item.quantity
+                })
+            return JsonResponse(response_data)
+        except Cart.DoesNotExist:
+            raise Http404('Cart not found')
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
             
     def delete(self, request, pk):
         """Delete a cart"""

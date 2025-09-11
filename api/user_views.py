@@ -196,6 +196,82 @@ class DBUserDetailView(View):
             raise Http404('User not found')
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
+    
+    def patch(self, request, pk):
+        """Partially update a user (only provided fields)"""
+        try:
+            user = User.objects.select_related('address').get(fakestore_id=pk)
+            data = json.loads(request.body)
+
+            # Update simple scalar fields if present
+            if 'email' in data:
+                user.email = data['email']
+            if 'username' in data:
+                user.username = data['username']
+            if 'password' in data:
+                user.set_password(data['password'])
+            if 'phone' in data:
+                user.phone = data['phone']
+
+            # Name (nested)
+            if 'name' in data:
+                name = data['name'] or {}
+                if 'firstname' in name:
+                    user.name_firstname = name['firstname']
+                if 'lastname' in name:
+                    user.name_lastname = name['lastname']
+
+            # Address (nested)
+            if 'address' in data:
+                addr_payload = data['address'] or {}
+                address = user.address
+                # If user has no address yet and payload has something, create one
+                if not address:
+                    address = UserAddress.objects.create()
+                    user.address = address
+                if 'city' in addr_payload:
+                    address.city = addr_payload['city']
+                if 'street' in addr_payload:
+                    address.street = addr_payload['street']
+                if 'number' in addr_payload:
+                    address.number = addr_payload['number']
+                if 'zipcode' in addr_payload:
+                    address.zipcode = addr_payload['zipcode']
+                if 'geolocation' in addr_payload:
+                    geo = addr_payload['geolocation'] or {}
+                    if 'lat' in geo:
+                        address.geolocation_lat = geo['lat']
+                    if 'long' in geo:
+                        address.geolocation_long = geo['long']
+                address.save()
+
+            user.save()
+
+            response_data = {
+                'id': user.fakestore_id,
+                'email': user.email,
+                'username': user.username,
+                'name': {
+                    'firstname': user.name_firstname,
+                    'lastname': user.name_lastname
+                },
+                'address': {
+                    'city': user.address.city if user.address else None,
+                    'street': user.address.street if user.address else None,
+                    'number': user.address.number if user.address else None,
+                    'zipcode': user.address.zipcode if user.address else None,
+                    'geolocation': {
+                        'lat': user.address.geolocation_lat if user.address else None,
+                        'long': user.address.geolocation_long if user.address else None
+                    } if user.address else None
+                } if user.address else None,
+                'phone': user.phone
+            }
+            return JsonResponse(response_data)
+        except User.DoesNotExist:
+            raise Http404('User not found')
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
             
     def delete(self, request, pk):
         """Delete a user"""

@@ -13,7 +13,7 @@ This project is a Django backend that mirrors the [FakeStore API](https://fakest
 
 ### 1. Clone the repository
 ```
-git clone <repo-url>
+git clone https://github.com/nkozdemir/fakestore-django-backend.git
 cd fakestore-django-backend
 ```
 
@@ -64,6 +64,8 @@ python manage.py runserver
 
 ## API Endpoints
 
+- Postman collection can be found [here](https://www.postman.com/nkozd/workspace/fakestore-backend/collection/28299888-fc67e512-efb1-42fd-899e-e659ad1ba2e7?action=share&creator=28299888).
+
 ### Products
 - `GET /api/products/` — List all products 
 - `POST /api/products/` — Create a new product
@@ -77,6 +79,7 @@ python manage.py runserver
 - `POST /api/users/` — Create a new user
 - `GET /api/users/<id>/` — Get user by ID
 - `PUT /api/users/<id>/` — Update a user completely
+- `PATCH /api/users/<id>/` — Update a user partially
 - `DELETE /api/users/<id>/` — Delete a user
 
 ### Carts
