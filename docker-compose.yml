@@ -18,6 +18,27 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_DEBUG: "1"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+      POSTGRES_DB: fakestore
+      POSTGRES_USER: fakestoreuser
+      POSTGRES_PASSWORD: fakestorepass
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://redis:6379/1
+      SEED_FAKESTORE: "0"
+    depends_on:
+      - db
+      - redis
 volumes:
   postgres_data:
   redis_data:

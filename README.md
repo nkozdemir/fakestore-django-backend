@@ -17,10 +17,15 @@ git clone <repo-url>
 cd fakestore-django-backend
 ```
 
-### 2. Start PostgreSQL with Docker Compose
+### 2. Run the full stack with Docker (PostgreSQL + Redis + Django app)
 ```
-docker compose up -d
+docker compose up --build
 ```
+
+This will start:
+- PostgreSQL (service: db)
+- Redis (service: redis)
+- Django app (service: web at http://localhost:8000)
 
 ### 3. Create and activate a Python virtual environment
 ```
@@ -50,8 +55,10 @@ This command will:
 3. Import all data from FakeStore API
 4. Create Django users for all FakeStore users
 
-### 6. Run the development server
+### 6. Run the development server (non-Docker)
+If you prefer running Django locally while still using Docker for Postgres/Redis:
 ```
+docker compose up -d db redis
 python manage.py runserver
 ```
 

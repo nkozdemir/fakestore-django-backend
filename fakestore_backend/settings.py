@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +21,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-bd*l*^1cn05m+#)pxyu33esw8a^y22k6+q+$4lgdfc@vdnquoj'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'insecure-dev-key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', '1') == '1'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -79,11 +80,11 @@ WSGI_APPLICATION = 'fakestore_backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'fakestore',
-        'USER': 'fakestoreuser',
-        'PASSWORD': 'fakestorepass',
-        'HOST': 'localhost',  # Use 'db' if running Django in Docker
-        'PORT': '5432',
+        'NAME': os.getenv('POSTGRES_DB', 'fakestore'),
+        'USER': os.getenv('POSTGRES_USER', 'fakestoreuser'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'fakestorepass'),
+        'HOST': os.getenv('POSTGRES_HOST', 'localhost'),  # 'db' inside Docker
+        'PORT': os.getenv('POSTGRES_PORT', '5432'),
     }
 }
 
@@ -156,7 +157,7 @@ AUTH_USER_MODEL = 'api.User'
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://localhost:6379/1",
+        "LOCATION": os.getenv('REDIS_URL', 'redis://localhost:6379/1'),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
